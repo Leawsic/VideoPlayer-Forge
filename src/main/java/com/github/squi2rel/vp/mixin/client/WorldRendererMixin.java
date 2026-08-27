@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(LevelRenderer.class)
 public class WorldRendererMixin {
 
-    @Inject(method = "renderClouds(Lcom/mojang/blaze3d/vertex/PoseStack;Lorg/joml/Matrix4f;DDDF)V", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "renderClouds", at = @At("HEAD"), cancellable = true)
     public void noClouds(CallbackInfo ci) {
         if (ScreenRenderer.skybox) ci.cancel();
     }
