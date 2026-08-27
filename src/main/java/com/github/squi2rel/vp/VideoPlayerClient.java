@@ -525,7 +525,7 @@ public class VideoPlayerClient {
                                                     ClientPacketHandler.setScale(currentLooking, false, s.getArgument("scaleX", Float.class), s.getArgument("scaleY", Float.class));
                                                     return 1;
                                                 })))))
-        );
+        ));
     }
 
     private static ClientVideoArea getArea(CommandContext<CommandSourceStack> s) {
