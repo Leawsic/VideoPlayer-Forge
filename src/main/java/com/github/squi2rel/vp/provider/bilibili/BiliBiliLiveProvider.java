@@ -30,7 +30,7 @@ public class BiliBiliLiveProvider extends BiliBiliProvider {
                     source.reply("直播间未开播");
                     return null;
                 }
-                return new VideoMeta(root.get("title").getAsString(), root.get("room_id").getAsString());
+                return new VideoMeta(root.get("title").getAsString(), root.get("room_id").getAsString(), -1);
             } catch (Exception e) {
                 source.reply(e.toString());
                 return null;
@@ -41,7 +41,7 @@ public class BiliBiliLiveProvider extends BiliBiliProvider {
                 HttpResponse<String> response = client.send(makeRequest(String.format(PLAY_URL, meta.cid())), HttpResponse.BodyHandlers.ofString());
                 JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject().getAsJsonObject("data");
                 String url = root.getAsJsonArray("durl").get(0).getAsJsonObject().get("url").getAsString();
-                return new VideoInfo(source.name(), meta.title(), url, str, System.currentTimeMillis() + 10000, false, VLC_PARAMS);
+                return new VideoInfo(source.name(), meta.title(), url, str, System.currentTimeMillis() + 10000, false, -1, VLC_PARAMS);
             } catch (Exception e) {
                 source.reply(e.toString());
                 return null;

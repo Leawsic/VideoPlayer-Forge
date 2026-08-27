@@ -110,7 +110,7 @@ public class ClientPacketHandler {
                     short len = buf.readUnsignedByte();
                     VideoInfo[] infos = new VideoInfo[len];
                     for (int j = 0; j < len; j++) {
-                        infos[j] = new VideoInfo(ByteBufUtils.readString(buf, 256), ByteBufUtils.readString(buf, 256), null, null, -1, false, null);
+                        infos[j] = new VideoInfo(ByteBufUtils.readString(buf, 256), ByteBufUtils.readString(buf, 256), null, null, -1, false, -1, null);
                     }
                     screen.updatePlaylist(infos);
                 }
@@ -200,7 +200,7 @@ public class ClientPacketHandler {
                 player.displayClientMessage(Component.literal("无法解析视频源"), false);
                 return;
             }
-            screen.play(new VideoInfo(info.playerName(), info.name(), resolved.path(), resolved.rawPath(), resolved.expire(), resolved.seekable(), info.params()));
+            screen.play(new VideoInfo(info.playerName(), info.name(), resolved.path(), resolved.rawPath(), resolved.expire(), resolved.seekable(), resolved.duration(), info.params()));
         }));
     }
 

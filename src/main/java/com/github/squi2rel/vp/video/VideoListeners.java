@@ -4,8 +4,8 @@ import com.github.squi2rel.vp.provider.VideoInfo;
 
 public class VideoListeners {
     public static IVideoListener from(VideoInfo info) {
-        if (StreamListener.accept(info)) {
-            return new StreamListener(info);
+        if (!info.path().isEmpty()) {
+            return new ClockListener(info);
         }
         if (PlayerListener.accept(info)) {
             return new PlayerListener();

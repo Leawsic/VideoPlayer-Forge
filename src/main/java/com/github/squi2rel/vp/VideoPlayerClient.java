@@ -112,7 +112,12 @@ public class VideoPlayerClient {
     };
 
     public static void init() {
-        VlcDecoder.load();
+        try {
+            VlcDecoder.load();
+        } catch (Throwable e) {
+            VideoPlayerMain.error = e;
+            LOGGER.error("Cannot load vlc library", e);
+        }
         loadConfig();
         PresetManager.init();
         disconnectHandler = () -> client.execute(() -> {

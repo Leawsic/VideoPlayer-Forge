@@ -30,19 +30,23 @@ public class BiliBiliVideoProvider extends BiliBiliProvider {
         String key = bvid + "?p=" + p;
         VideoCache cache = CACHE.getIfPresent(key);
         if (cache != null && System.currentTimeMillis() < cache.expireTime) {
-            return CompletableFuture.completedFuture(new VideoInfo(source.name(), cache.title, cache.url, key, cache.expireTime, true, VLC_PARAMS));
+            return CompletableFuture.completedFuture(new VideoInfo(source.name(), cache.title, cache.url, key, cache.expireTime, true, cache.duration, VLC_PARAMS));
         }
         return CompletableFuture.supplyAsync(() -> {
             try {
                 HttpResponse<String> response = client.send(makeRequest(String.format(FETCH_URL, bvid)), HttpResponse.BodyHandlers.ofString());
                 JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject().getAsJsonObject("data");
                 String cid;
+                long duration;
                 if (p == null) {
                     cid = root.get("cid").getAsString();
+                    duration = root.get("duration").getAsLong() * 1000L;
                 } else {
-                    cid = root.getAsJsonArray("pages").get(p - 1).getAsJsonObject().get("cid").getAsString();
+                    JsonObject page = root.getAsJsonArray("pages").get(p - 1).getAsJsonObject();
+                    cid = page.get("cid").getAsString();
+                    duration = page.get("duration").getAsLong() * 1000L;
                 }
-                return new VideoMeta(root.get("title").getAsString(), cid);
+                return new VideoMeta(root.get("title").getAsString(), cid, duration);
             } catch (Exception e) {
                 source.reply(e.toString());
                 return null;
@@ -53,8 +57,8 @@ public class BiliBiliVideoProvider extends BiliBiliProvider {
                 JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
                 String url = root.getAsJsonObject("data").getAsJsonArray("durl").get(0).getAsJsonObject().get("url").getAsString();
                 long expire = System.currentTimeMillis() + 1000 * 60 * 60 * 2;
-                CACHE.put(key, new VideoCache(meta.title(), url, expire));
-                return new VideoInfo(source.name(), meta.title(), url, key, expire, true, VLC_PARAMS);
+                CACHE.put(key, new VideoCache(meta.title(), url, expire, meta.duration()));
+                return new VideoInfo(source.name(), meta.title(), url, key, expire, true, meta.duration(), VLC_PARAMS);
             } catch (Exception e) {
                 source.reply(e.toString());
                 return null;
@@ -62,5 +66,5 @@ public class BiliBiliVideoProvider extends BiliBiliProvider {
         });
     }
 
-    private record VideoCache(String title, String url, long expireTime) {}
+    private record VideoCache(String title, String url, long expireTime, long duration) {}
 }

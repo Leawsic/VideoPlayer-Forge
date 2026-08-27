@@ -3,7 +3,6 @@ package com.github.squi2rel.vp;
 import com.github.squi2rel.vp.network.ServerPacketHandler;
 import com.github.squi2rel.vp.network.VideoPayload;
 import com.github.squi2rel.vp.provider.VideoProviders;
-import com.github.squi2rel.vp.video.StreamListener;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.Commands;
 import net.minecraftforge.api.distmarker.Dist;
@@ -39,12 +38,6 @@ public class VideoPlayerMain {
     public static ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1, VideoPlayerMain::newDaemon);
 
     public VideoPlayerMain() {
-        try {
-            StreamListener.load();
-        } catch (Throwable e) {
-            error = e;
-            LOGGER.error("Cannot load vlc library", e);
-        }
         VideoProviders.register();
         MinecraftForge.EVENT_BUS.register(this);
         var modBus = FMLJavaModLoadingContext.get().getModEventBus();

@@ -39,5 +39,5 @@ public abstract class BiliBiliProvider implements IVideoProvider {
         return builder.build();
     }
 
-    protected record VideoMeta(String title, String cid) {}
+    protected record VideoMeta(String title, String cid, long duration) {}
 }

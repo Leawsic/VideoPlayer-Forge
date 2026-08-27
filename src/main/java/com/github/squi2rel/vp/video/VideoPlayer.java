@@ -87,7 +87,7 @@ public class VideoPlayer implements IVideoPlayer, MetaListener {
             String[] newParams = new String[params.length + 1];
             System.arraycopy(params, 0, newParams, 0, params.length);
             newParams[newParams.length - 1] = ":start-time=" + targetTime / 1000f;
-            info = new VideoInfo(info.playerName(), info.name(), info.path(), info.rawPath(), info.expire(), info.seekable(), newParams);
+            info = new VideoInfo(info.playerName(), info.name(), info.path(), info.rawPath(), info.expire(), info.seekable(), info.duration(), newParams);
         }
         decoder.onPlay(() -> decoder.submit(() -> decoder.setVolume(config.volume)));
         decoder.init(info);
