@@ -39,6 +39,10 @@ public class ServerPacketHandler {
                 DataHolder.unlock();
             }
             case REQUEST -> {
+                if (DataHolder.isBlacklisted(player.getUUID())) {
+                    player.sendSystemMessage(Component.literal("你已被加入视频播放黑名单").withStyle(ChatFormatting.RED));
+                    return;
+                }
                 VideoArea area = getArea(player, readName(buf));
                 if (area == null) return;
                 VideoScreen screen = area.getScreen(readName(buf));

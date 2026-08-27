@@ -38,6 +38,7 @@ public class DataHolder {
         for (UUID uuid : allPlayers) {
             ServerPlayer player = pm.getPlayer(uuid);
             if (player == null) continue;
+            if (isBlacklisted(uuid)) continue;
             String dim = player.serverLevel().dimension().location().toString();
             HashMap<String, VideoArea> all = areas.get(dim);
             if (all == null || all.isEmpty()) continue;
@@ -123,6 +124,12 @@ public class DataHolder {
 
     public static void unlock() {
         lock.unlock();
+    }
+
+    public static boolean isBlacklisted(UUID uuid) {
+        ServerPlayer player = server.getPlayerList().getPlayer(uuid);
+        if (player == null) return false;
+        return config.blacklist.contains(player.getName().getString());
     }
 
     public static void stop(MinecraftServer server) {
