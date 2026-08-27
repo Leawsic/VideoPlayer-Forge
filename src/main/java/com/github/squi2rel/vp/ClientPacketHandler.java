@@ -46,7 +46,10 @@ public class ClientPacketHandler {
             case REQUEST -> {
                 ClientVideoScreen screen = areas.get(readName(buf)).getScreen(readName(buf));
                 VideoInfo info = VideoInfo.read(buf);
-                if (screen != null) play(screen, info);
+                if (screen != null) {
+                    screen.setPausedOnLoad(false);
+                    play(screen, info);
+                }
             }
             case STOP -> {
                 ClientVideoScreen screen = areas.get(readName(buf)).getScreen(readName(buf));

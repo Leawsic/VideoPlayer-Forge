@@ -216,7 +216,7 @@ public class VideoScreen {
     }
 
     public synchronized void playNext() {
-        if (nextTask != null && !nextTask.isDone() || now != null && now.isPlaying()) return;
+        if (nextTask != null && !nextTask.isDone() || now != null) return;
         now = null;
         skipped.clear();
         nextTask = CompletableFuture.supplyAsync(() -> {
