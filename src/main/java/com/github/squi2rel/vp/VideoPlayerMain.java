@@ -187,7 +187,7 @@ public class VideoPlayerMain {
                                             var area = map != null ? map.get(areaName) : null;
                                             unlock();
                                             if (area == null) {
-                                                s.getSource().sendSuccess(() -> literal("未找到观影区: " + areaName), false);
+                                                s.getSource().sendSuccess(() -> Component.literal("未找到观影区: " + areaName), false);
                                                 return 1;
                                             }
                                             StringBuilder sb = new StringBuilder("观影区 " + areaName + " 屏幕列表 (" + area.screens.size() + "):\n");
