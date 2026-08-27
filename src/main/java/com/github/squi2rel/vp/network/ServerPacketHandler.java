@@ -40,7 +40,7 @@ public class ServerPacketHandler {
             }
             case REQUEST -> {
                 if (DataHolder.isBlacklisted(player.getUUID())) {
-                    player.sendSystemMessage(Component.literal("你已被加入视频播放黑名单").withStyle(ChatFormatting.RED));
+                    player.sendSystemMessage(Component.literal("你暂无法播放视频！").withStyle(ChatFormatting.RED));
                     return;
                 }
                 VideoArea area = getArea(player, readName(buf));
