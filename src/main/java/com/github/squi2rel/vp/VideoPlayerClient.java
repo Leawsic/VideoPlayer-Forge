@@ -398,7 +398,39 @@ public class VideoPlayerClient {
                                     s.getSource().sendSuccess(() -> Component.literal("弹幕已" + (config.danmaku ? "开启" : "关闭"))
                                             .withStyle(ChatFormatting.GREEN), false);
                                     return 1;
-                                })))
+                                }))
+                        .then(Commands.literal("opacity")
+                                .then(Commands.argument("value", IntegerArgumentType.integer(0, 100))
+                                        .executes(s -> {
+                                            config.danmakuOpacity = s.getArgument("value", Integer.class);
+                                            saveConfig();
+                                            s.getSource().sendSuccess(() -> Component.literal("弹幕不透明度已设置为 " + config.danmakuOpacity + "%").withStyle(ChatFormatting.GREEN), false);
+                                            return 1;
+                                        })))
+                        .then(Commands.literal("scale")
+                                .then(Commands.argument("value", IntegerArgumentType.integer(20, 400))
+                                        .executes(s -> {
+                                            config.danmakuScale = s.getArgument("value", Integer.class);
+                                            saveConfig();
+                                            s.getSource().sendSuccess(() -> Component.literal("弹幕字号已设置为 " + config.danmakuScale + "%").withStyle(ChatFormatting.GREEN), false);
+                                            return 1;
+                                        })))
+                        .then(Commands.literal("speed")
+                                .then(Commands.argument("value", IntegerArgumentType.integer(10, 400))
+                                        .executes(s -> {
+                                            config.danmakuSpeed = s.getArgument("value", Integer.class);
+                                            saveConfig();
+                                            s.getSource().sendSuccess(() -> Component.literal("弹幕速度已设置为 " + config.danmakuSpeed + "%").withStyle(ChatFormatting.GREEN), false);
+                                            return 1;
+                                        })))
+                        .then(Commands.literal("max")
+                                .then(Commands.argument("value", IntegerArgumentType.integer(1, 200))
+                                        .executes(s -> {
+                                            config.danmakuMax = s.getArgument("value", Integer.class);
+                                            saveConfig();
+                                            s.getSource().sendSuccess(() -> Component.literal("弹幕最大同屏数已设置为 " + config.danmakuMax).withStyle(ChatFormatting.GREEN), false);
+                                            return 1;
+                                        }))))
                 .then(Commands.literal("slice")
                         .then(Commands.argument("u1", FloatArgumentType.floatArg())
                         .then(Commands.argument("v1", FloatArgumentType.floatArg())

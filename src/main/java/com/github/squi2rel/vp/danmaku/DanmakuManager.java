@@ -7,6 +7,8 @@ import com.github.squi2rel.vp.provider.VideoInfo;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
@@ -34,7 +36,8 @@ public final class DanmakuManager {
     private static final HttpClient CLIENT = HttpClient.newHttpClient();
     private static final Map<ClientVideoScreen, Track> TRACKS = new HashMap<>();
     private static final int SEGMENT_MILLIS = 6 * 60 * 1000;
-    private static final int MAX_VISIBLE = 24;
+    private static final int LANES = 12;
+    private static final int BASE_DURATION = 9000;
 
     private DanmakuManager() {}
 
@@ -67,6 +70,9 @@ public final class DanmakuManager {
         loadSegment(track, currentSegment);
         loadSegment(track, currentSegment + 1);
 
+        int maxVisible = Math.max(1, VideoPlayerClient.config.danmakuMax);
+        long duration = (long) (BASE_DURATION * (100.0 / Math.max(10, VideoPlayerClient.config.danmakuSpeed)));
+
         List<Danmaku> visible = new ArrayList<>();
         List<Danmaku> items;
         synchronized (track) {
@@ -74,8 +80,8 @@ public final class DanmakuManager {
         }
         for (Danmaku danmaku : items) {
             long age = progress - danmaku.time;
-            if (age >= 0 && age <= 9000) visible.add(danmaku);
-            if (visible.size() >= MAX_VISIBLE) break;
+            if (age >= 0 && age <= duration) visible.add(danmaku);
+            if (visible.size() >= maxVisible) break;
         }
         if (visible.isEmpty()) return;
 
@@ -96,7 +102,7 @@ public final class DanmakuManager {
         matrices.translate(-com.github.squi2rel.vp.ScreenRenderer.cameraX,
                 -com.github.squi2rel.vp.ScreenRenderer.cameraY,
                 -com.github.squi2rel.vp.ScreenRenderer.cameraZ);
-        Matrix4f matrix = new Matrix4f(matrices.last().pose());
+        Matrix4f base = new Matrix4f(matrices.last().pose());
         matrices.popPose();
 
         Matrix4f local = new Matrix4f()
@@ -104,16 +110,24 @@ public final class DanmakuManager {
                 .m10(down.x).m11(down.y).m12(down.z)
                 .m20(normal.x).m21(normal.y).m22(normal.z)
                 .m30(screen.p1.x).m31(screen.p1.y).m32(screen.p1.z);
-        matrix.mul(local);
+        base.mul(local);
 
         Font font = Minecraft.getInstance().font;
-        for (int index = 0; index < visible.size(); index++) {
-            Danmaku danmaku = visible.get(index);
+        float rowHeight = videoHeight / (float) LANES;
+        float fontScale = rowHeight / font.lineHeight * (VideoPlayerClient.config.danmakuScale / 100f);
+        int alpha = Mth.clamp(VideoPlayerClient.config.danmakuOpacity, 0, 100) * 255 / 100;
+        int outline = alpha << 24;
+
+        for (Danmaku danmaku : visible) {
             long age = progress - danmaku.time;
-            float x = videoWidth - (videoWidth + font.width(danmaku.text)) * age / 9000f;
-            float y = 8 + (index % 12) * 18;
-            font.drawInBatch(danmaku.text, x, y, 0xFF000000 | danmaku.color, true, matrix, buffers,
-                    Font.DisplayMode.POLYGON_OFFSET, 0, 0xF000F0);
+            float textWidth = font.width(danmaku.text) * fontScale;
+            float x = videoWidth - (videoWidth + textWidth) * age / (float) duration;
+            int lane = Math.floorMod(danmaku.text.hashCode() * 31 + (int) danmaku.time, LANES);
+            float y = lane * rowHeight;
+            int color = (alpha << 24) | (danmaku.color & 0xFFFFFF);
+
+            Matrix4f m = new Matrix4f(base).translate(x, y, 0).scale(fontScale, fontScale, fontScale);
+            font.drawInBatch8xOutline(Component.literal(danmaku.text).getVisualOrderText(), 0, 0, color, outline, m, buffers, 0xF000F0);
         }
     }
 
