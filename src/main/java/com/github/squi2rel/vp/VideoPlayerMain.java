@@ -7,6 +7,8 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
@@ -33,7 +35,6 @@ import static com.github.squi2rel.vp.DataHolder.lock;
 import static com.github.squi2rel.vp.DataHolder.unlock;
 import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
-import static net.minecraft.network.chat.Component.literal;
 
 @Mod(VideoPlayerMain.MOD_ID)
 public class VideoPlayerMain {
@@ -110,7 +111,7 @@ public class VideoPlayerMain {
                                     var map = areas.get(dim);
                                     unlock();
                                     if (map == null || map.isEmpty()) {
-                                        s.getSource().sendSuccess(() -> literal("当前维度 " + dim + " 无观影区"), false);
+                                        s.getSource().sendSuccess(() -> Component.literal("当前维度 " + dim + " 无观影区"), false);
                                         return 1;
                                     }
                                     StringBuilder sb = new StringBuilder("维度 " + dim + " 观影区列表 (" + map.size() + "):\n");
@@ -121,7 +122,7 @@ public class VideoPlayerMain {
                                                 .append("] 屏幕数: ").append(area.screens.size())
                                                 .append(" 玩家数: ").append(area.players()).append("\n");
                                     }
-                                    s.getSource().sendSuccess(() -> literal(sb.toString()), false);
+                                    s.getSource().sendSuccess(() -> Component.literal(sb.toString()), false);
                                     return 1;
                                 }))
                         .then(literal("info")
@@ -134,7 +135,7 @@ public class VideoPlayerMain {
                                             var area = map != null ? map.get(name) : null;
                                             unlock();
                                             if (area == null) {
-                                                s.getSource().sendSuccess(() -> literal("未找到观影区: " + name), false);
+                                                s.getSource().sendSuccess(() -> Component.literal("未找到观影区: " + name), false);
                                                 return 1;
                                             }
                                             StringBuilder sb = new StringBuilder("观影区 " + name + ":\n");
@@ -149,7 +150,7 @@ public class VideoPlayerMain {
                                                     sb.append("    ").append(screen.name).append(" (source: ").append(screen.source).append(")\n");
                                                 }
                                             }
-                                            s.getSource().sendSuccess(() -> literal(sb.toString()), false);
+                                            s.getSource().sendSuccess(() -> Component.literal(sb.toString()), false);
                                             return 1;
                                         })))
                         .then(literal("remove")
@@ -162,7 +163,7 @@ public class VideoPlayerMain {
                                             var area = map != null ? map.remove(name) : null;
                                             unlock();
                                             if (area == null) {
-                                                s.getSource().sendSuccess(() -> literal("未找到观影区: " + name), false);
+                                                s.getSource().sendSuccess(() -> Component.literal("未找到观影区: " + name), false);
                                                 return 1;
                                             }
                                             if (area.hasPlayer()) {
@@ -172,7 +173,7 @@ public class VideoPlayerMain {
                                             }
                                             area.remove();
                                             DataHolder.save();
-                                            s.getSource().sendSuccess(() -> literal("已删除观影区: " + name).withStyle(net.minecraft.ChatFormatting.GREEN), false);
+                                            s.getSource().sendSuccess(() -> Component.literal("已删除观影区: " + name).withStyle(net.minecraft.ChatFormatting.GREEN), false);
                                             return 1;
                                         }))))
                 .then(literal("screen")
@@ -195,7 +196,7 @@ public class VideoPlayerMain {
                                                         .append(" source: ").append(screen.source)
                                                         .append(" pos: [").append((int) screen.p1.x).append(",").append((int) screen.p1.y).append(",").append((int) screen.p1.z).append("]\n");
                                             }
-                                            s.getSource().sendSuccess(() -> literal(sb.toString()), false);
+                                            s.getSource().sendSuccess(() -> Component.literal(sb.toString()), false);
                                             return 1;
                                         }))))
                 .then(literal("blacklist")
@@ -205,10 +206,10 @@ public class VideoPlayerMain {
                                     var list = new java.util.ArrayList<>(config.blacklist);
                                     unlock();
                                     if (list.isEmpty()) {
-                                        s.getSource().sendSuccess(() -> literal("黑名单为空"), false);
+                                        s.getSource().sendSuccess(() -> Component.literal("黑名单为空"), false);
                                         return 1;
                                     }
-                                    s.getSource().sendSuccess(() -> literal("黑名单 (" + list.size() + "):\n" + String.join("\n", list)), false);
+                                    s.getSource().sendSuccess(() -> Component.literal("黑名单 (" + list.size() + "):\n" + String.join("\n", list)), false);
                                     return 1;
                                 }))
                         .then(literal("add")
@@ -219,7 +220,7 @@ public class VideoPlayerMain {
                                             config.blacklist.add(name);
                                             DataHolder.save();
                                             unlock();
-                                            s.getSource().sendSuccess(() -> literal("已加入黑名单: " + name).withStyle(net.minecraft.ChatFormatting.GREEN), false);
+                                            s.getSource().sendSuccess(() -> Component.literal("已加入黑名单: " + name).withStyle(net.minecraft.ChatFormatting.GREEN), false);
                                             return 1;
                                         })))
                         .then(literal("remove")
@@ -231,9 +232,9 @@ public class VideoPlayerMain {
                                             DataHolder.save();
                                             unlock();
                                             if (removed) {
-                                                s.getSource().sendSuccess(() -> literal("已移出黑名单: " + name).withStyle(net.minecraft.ChatFormatting.GREEN), false);
+                                                s.getSource().sendSuccess(() -> Component.literal("已移出黑名单: " + name).withStyle(net.minecraft.ChatFormatting.GREEN), false);
                                             } else {
-                                                s.getSource().sendSuccess(() -> literal("不在黑名单中: " + name).withStyle(net.minecraft.ChatFormatting.YELLOW), false);
+                                                s.getSource().sendSuccess(() -> Component.literal("不在黑名单中: " + name).withStyle(net.minecraft.ChatFormatting.YELLOW), false);
                                             }
                                             return 1;
                                         })))
@@ -243,7 +244,7 @@ public class VideoPlayerMain {
                                     config.blacklist.clear();
                                     DataHolder.save();
                                     unlock();
-                                    s.getSource().sendSuccess(() -> literal("黑名单已清空").withStyle(net.minecraft.ChatFormatting.GREEN), false);
+                                    s.getSource().sendSuccess(() -> Component.literal("黑名单已清空").withStyle(net.minecraft.ChatFormatting.GREEN), false);
                                     return 1;
                                 }))));
     }
