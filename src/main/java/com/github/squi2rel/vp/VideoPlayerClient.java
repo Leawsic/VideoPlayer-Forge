@@ -416,6 +416,12 @@ public class VideoPlayerClient {
                             ClientPacketHandler.resume(currentScreen.getScreen());
                             return 1;
                         }))
+                .then(Commands.literal("pause")
+                        .executes(s -> {
+                            if (checkInvalid(s, true)) return 0;
+                            ClientPacketHandler.pause(currentScreen.getScreen());
+                            return 1;
+                        }))
                 .then(Commands.literal("seek")
                         .then(Commands.argument("millis", LongArgumentType.longArg(0))
                                 .executes(s -> seek(s, s.getArgument("millis", Long.class)))))
@@ -683,7 +689,7 @@ public class VideoPlayerClient {
             VideoInfo info = screen.infos.peek();
             if (info != null && screen.player != null) {
                 String name = info.name();
-                long progress = System.currentTimeMillis() - screen.getStartTime();
+                long progress = screen.getPlaybackProgress();
                 long totalProgress = screen.player.getTotalProgress();
                 String time;
                 if (totalProgress > 0) {

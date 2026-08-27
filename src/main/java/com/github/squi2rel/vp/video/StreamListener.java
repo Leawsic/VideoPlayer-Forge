@@ -21,6 +21,7 @@ public class StreamListener implements IVideoListener {
     private Runnable errored = () -> {};
     private Runnable timeout = () -> {};
     private final VideoInfo info;
+    private boolean paused;
 
     public long lastPlayTime;
     public long lastPlayUpdateTime;
@@ -94,7 +95,7 @@ public class StreamListener implements IVideoListener {
 
     @Override
     public long getProgress() {
-        return player == null ? -1 : lastPlayTime == 0 ? 0 : System.currentTimeMillis() - lastPlayUpdateTime + lastPlayTime;
+        return player == null ? -1 : paused || lastPlayTime == 0 ? lastPlayTime : System.currentTimeMillis() - lastPlayUpdateTime + lastPlayTime;
     }
 
     @Override
@@ -147,7 +148,39 @@ public class StreamListener implements IVideoListener {
         player.events().addMediaPlayerEventListener(callback);
         references.put(player, this);
         lastPlayTime = 0;
+        paused = false;
         player.media().play(info.path().replace("rtspt://", "rtsp://"), info.params());
+    }
+
+    @Override
+    public boolean canPause() {
+        return player != null && player.status().canPause();
+    }
+
+    @Override
+    public void pause(boolean paused) {
+        if (player == null) return;
+        this.paused = paused;
+        player.controls().setPause(paused);
+        if (!paused) lastPlayUpdateTime = System.currentTimeMillis();
+    }
+
+    @Override
+    public boolean isPaused() {
+        return paused;
+    }
+
+    @Override
+    public boolean canSetProgress() {
+        return player != null && player.status().isSeekable();
+    }
+
+    @Override
+    public void setProgress(long progress) {
+        if (player == null) return;
+        lastPlayTime = progress;
+        lastPlayUpdateTime = System.currentTimeMillis();
+        player.controls().setTime(progress);
     }
 
     @Override

@@ -28,8 +28,9 @@ public class PacketID {
     SET_SCALE = 18,
     AUTO_SYNC = 19,
     STOP = 20,
-    PLAY_AT = 21,
-    SEEK = 22;
+    PAUSE = 21,
+    RESUME = 22,
+    SEEK = 23;
 
     public enum Action {
         MUTE("静音", i -> (i >>> 1) == 0, (v, i) -> v.meta.put("mute", i)),

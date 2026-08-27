@@ -134,7 +134,13 @@ public class ServerPacketHandler {
                 VideoScreen screen = area.getScreen(readName(buf));
                 if (screen != null) screen.stop();
             }
-            case PLAY_AT -> {
+            case PAUSE -> {
+                VideoArea area = getArea(player, readName(buf));
+                if (area == null) return;
+                VideoScreen screen = area.getScreen(readName(buf));
+                if (screen != null) screen.pause();
+            }
+            case RESUME -> {
                 VideoArea area = getArea(player, readName(buf));
                 if (area == null) return;
                 VideoScreen screen = area.getScreen(readName(buf));
@@ -418,7 +424,7 @@ public class ServerPacketHandler {
             VideoInfo info = screen.currentPlaying();
             if (info == null) continue;
             writeString(buf, screen.name);
-            buf.writeBoolean(screen.isStopped());
+            buf.writeBoolean(screen.isPaused());
             VideoInfo.write(buf, info);
             buf.writeLong(screen.getProgress());
         }
@@ -457,15 +463,27 @@ public class ServerPacketHandler {
         ByteBuf buf = create(STOP);
         writeString(buf, screen.area.name);
         writeString(buf, screen.name);
-        buf.writeLong(screen.getProgress());
         return toByteArray(buf);
     }
 
-    public static byte[] playAt(VideoScreen screen, VideoInfo info, long progress) {
-        ByteBuf buf = create(PLAY_AT);
+    public static byte[] pause(VideoScreen screen) {
+        ByteBuf buf = create(PAUSE);
         writeString(buf, screen.area.name);
         writeString(buf, screen.name);
-        VideoInfo.write(buf, info);
+        return toByteArray(buf);
+    }
+
+    public static byte[] resume(VideoScreen screen) {
+        ByteBuf buf = create(RESUME);
+        writeString(buf, screen.area.name);
+        writeString(buf, screen.name);
+        return toByteArray(buf);
+    }
+
+    public static byte[] seek(VideoScreen screen, long progress) {
+        ByteBuf buf = create(SEEK);
+        writeString(buf, screen.area.name);
+        writeString(buf, screen.name);
         buf.writeLong(progress);
         return toByteArray(buf);
     }

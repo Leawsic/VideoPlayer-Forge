@@ -50,16 +50,20 @@ public class ClientPacketHandler {
             }
             case STOP -> {
                 ClientVideoScreen screen = areas.get(readName(buf)).getScreen(readName(buf));
-                long progress = buf.readLong();
-                if (screen != null) screen.stopPlayback(progress);
+                if (screen != null) screen.stopPlayback();
             }
-            case PLAY_AT -> {
+            case PAUSE -> {
                 ClientVideoScreen screen = areas.get(readName(buf)).getScreen(readName(buf));
-                VideoInfo info = VideoInfo.read(buf);
+                if (screen != null) screen.pause(true);
+            }
+            case RESUME -> {
+                ClientVideoScreen screen = areas.get(readName(buf)).getScreen(readName(buf));
+                if (screen != null) screen.pause(false);
+            }
+            case SEEK -> {
+                ClientVideoScreen screen = areas.get(readName(buf)).getScreen(readName(buf));
                 long progress = buf.readLong();
-                if (screen == null) return;
-                screen.setToSeek(progress);
-                play(screen, info);
+                if (screen != null) screen.setProgress(progress);
             }
             case SYNC -> {
                 String areaName = readName(buf);
@@ -84,15 +88,12 @@ public class ClientPacketHandler {
                 ClientVideoArea area = areas.get(readName(buf));
                 while (buf.readableBytes() != 0) {
                     ClientVideoScreen screen = area.getScreen(readName(buf));
-                    boolean stopped = buf.readBoolean();
+                    boolean paused = buf.readBoolean();
                     VideoInfo info = VideoInfo.read(buf);
                     long progress = buf.readLong();
-                    if (stopped) {
-                        screen.stopPlayback(progress);
-                        continue;
-                    }
                     screen.setToPlay(info);
                     screen.setToSeek(progress);
+                    screen.setPausedOnLoad(paused);
                 }
                 area.load();
             }
@@ -286,7 +287,14 @@ public class ClientPacketHandler {
     }
 
     public static void resume(VideoScreen screen) {
-        ByteBuf buf = create(PLAY_AT);
+        ByteBuf buf = create(RESUME);
+        writeString(buf, screen.area.name);
+        writeString(buf, screen.name);
+        send(toByteArray(buf));
+    }
+
+    public static void pause(VideoScreen screen) {
+        ByteBuf buf = create(PAUSE);
         writeString(buf, screen.area.name);
         writeString(buf, screen.name);
         send(toByteArray(buf));

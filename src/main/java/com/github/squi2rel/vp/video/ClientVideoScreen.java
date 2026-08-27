@@ -19,7 +19,7 @@ public class ClientVideoScreen extends VideoScreen {
     private VideoInfo toPlay = null;
     private long toSeek = -1;
     private long startTime = System.currentTimeMillis();
-    private long stoppedProgress;
+    private boolean paused;
     public boolean interactable = true;
 
     private long lastAutoSync;
@@ -112,6 +112,7 @@ public class ClientVideoScreen extends VideoScreen {
                 startTime = System.currentTimeMillis();
             }
             player.play(info);
+            if (paused) player.pause(true);
         }
     }
 
@@ -135,15 +136,11 @@ public class ClientVideoScreen extends VideoScreen {
     }
 
     public void stopPlayback() {
-        stopPlayback(player == null ? 0 : Math.max(player.getProgress(), 0));
-    }
-
-    public void stopPlayback(long progress) {
         syncFrames = 0;
+        paused = false;
         toPlay = null;
         toSeek = -1;
         startTime = 0;
-        stoppedProgress = progress;
         if (player != null) {
             player.cleanup();
             player = null;
@@ -151,7 +148,18 @@ public class ClientVideoScreen extends VideoScreen {
     }
 
     public long getPlaybackProgress() {
-        return player == null ? stoppedProgress : Math.max(player.getProgress(), 0);
+        return player == null ? 0 : Math.max(player.getProgress(), 0);
+    }
+
+    public void pause(boolean paused) {
+        this.paused = paused;
+        if (player == null) return;
+        player.pause(paused);
+        if (!paused) startTime = System.currentTimeMillis() - player.getProgress();
+    }
+
+    public void setPausedOnLoad(boolean paused) {
+        this.paused = paused;
     }
 
     public void autoSync(int clientDelay, long syncProgress) {

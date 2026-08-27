@@ -18,4 +18,22 @@ public interface IVideoListener {
     void listen();
 
     void cancel();
+
+    default boolean canPause() {
+        return false;
+    }
+
+    default void pause(boolean paused) {
+    }
+
+    default boolean isPaused() {
+        return false;
+    }
+
+    default boolean canSetProgress() {
+        return false;
+    }
+
+    default void setProgress(long progress) {
+    }
 }

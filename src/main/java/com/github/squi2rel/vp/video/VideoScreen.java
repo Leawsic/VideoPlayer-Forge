@@ -36,9 +36,7 @@ public class VideoScreen {
     private transient CompletableFuture<IVideoListener> nextTask;
     private transient HashSet<UUID> skipped;
     private transient ReentrantLock lock;
-    private transient boolean stopped;
-    private transient long stoppedProgress;
-    private transient long startProgress;
+    private transient boolean paused;
 
     public VideoScreen(VideoArea area, String name, Vector3f p1, Vector3f p2, Vector3f p3, Vector3f p4, String source) {
         this.area = area;
@@ -102,7 +100,6 @@ public class VideoScreen {
     }
 
     public long getProgress() {
-        if (stopped) return stoppedProgress;
         VideoInfo info = infos.peek();
         if (now == null || info == null || !info.seekable()) return -1;
         return now.getProgress();
@@ -132,9 +129,7 @@ public class VideoScreen {
             now.cancel();
             now = null;
         }
-        stopped = false;
-        stoppedProgress = 0;
-        startProgress = 0;
+        paused = false;
         infos.poll();
         unlock();
         playNext();
@@ -142,11 +137,7 @@ public class VideoScreen {
     }
 
     public synchronized void stop() {
-        if (stopped) return;
         if (infos.peek() == null) return;
-        long progress = getProgress();
-        stoppedProgress = Math.max(progress, 0);
-        stopped = true;
         lock();
         if (nextTask != null) {
             nextTask.cancel(true);
@@ -156,6 +147,8 @@ public class VideoScreen {
             now.cancel();
             now = null;
         }
+        infos.clear();
+        paused = false;
         unlock();
         if (area.hasPlayer()) {
             PlayerList pm = server.getPlayerList();
@@ -166,33 +159,35 @@ public class VideoScreen {
     }
 
     public synchronized void resume() {
-        if (!stopped || infos.peek() == null) return;
-        startProgress = stoppedProgress;
-        stopped = false;
-        playNext();
+        if (now == null || !paused) return;
+        paused = false;
+        now.pause(false);
+        syncPlaybackState(ServerPacketHandler.resume(this));
+    }
+
+    public synchronized void pause() {
+        if (now == null || paused || !now.canPause()) return;
+        paused = true;
+        now.pause(true);
+        syncPlaybackState(ServerPacketHandler.pause(this));
     }
 
     public synchronized void seek(long progress) {
         VideoInfo info = infos.peek();
         if (info == null || !info.seekable() || progress < 0) return;
-        startProgress = progress;
-        stoppedProgress = progress;
-        stopped = false;
-        lock();
-        if (nextTask != null) {
-            nextTask.cancel(true);
-            nextTask = null;
-        }
-        if (now != null) {
-            now.cancel();
-            now = null;
-        }
-        unlock();
-        playNext();
+        if (now == null) return;
+        now.setProgress(progress);
+        syncPlaybackState(ServerPacketHandler.seek(this, progress));
     }
 
-    public synchronized boolean isStopped() {
-        return stopped;
+    public synchronized boolean isPaused() {
+        return paused;
+    }
+
+    private void syncPlaybackState(byte[] data) {
+        if (!area.hasPlayer()) return;
+        PlayerList pm = server.getPlayerList();
+        area.forEachPlayer(u -> ServerPacketHandler.sendTo(pm.getPlayer(u), data));
     }
 
     public synchronized void removePlayer(UUID uuid) {
@@ -206,9 +201,7 @@ public class VideoScreen {
         if (nextTask != null) nextTask.cancel(true);
         now = null;
         nextTask = null;
-        stopped = false;
-        stoppedProgress = 0;
-        startProgress = 0;
+        paused = false;
         infos.clear();
         unlock();
         syncInfo();
@@ -223,7 +216,7 @@ public class VideoScreen {
     }
 
     public synchronized void playNext() {
-        if (stopped || nextTask != null && !nextTask.isDone() || now != null && now.isPlaying()) return;
+        if (nextTask != null && !nextTask.isDone() || now != null && now.isPlaying()) return;
         now = null;
         skipped.clear();
         nextTask = CompletableFuture.supplyAsync(() -> {
@@ -241,8 +234,6 @@ public class VideoScreen {
                 }
                 return null;
             }
-            long progress = startProgress;
-            startProgress = 0;
             LOGGER.info("playing info: {} {} {}", info.playerName(), info.name(), info.path());
             if (info.expire() > 0 && System.currentTimeMillis() > info.expire()) {
                 try {
@@ -256,7 +247,7 @@ public class VideoScreen {
             }
             if (area.hasPlayer()) {
                 PlayerList pm = server.getPlayerList();
-                byte[] data = ServerPacketHandler.playAt(this, info, progress);
+                byte[] data = ServerPacketHandler.request(this, info);
                 DataHolder.lock();
                 area.forEachPlayer(u -> ServerPacketHandler.sendTo(pm.getPlayer(u), data));
                 DataHolder.unlock();
@@ -268,7 +259,7 @@ public class VideoScreen {
                 } catch (Exception ignored) {
                 }
             }
-            return now = VideoListeners.from(withStartTime(info, progress));
+            return now = VideoListeners.from(info);
         });
         nextTask.whenComplete((s, error) -> {
             if (s == null || error != null) {
@@ -280,6 +271,7 @@ public class VideoScreen {
             synchronized (this) {
                 nextTask = null;
                 s.stopped(() -> VideoPlayerMain.scheduler.schedule(() -> {
+                    if (paused) return;
                     lock();
                     infos.poll();
                     unlock();
@@ -296,13 +288,6 @@ public class VideoScreen {
 
     public IVideoListener getListener() {
         return now;
-    }
-
-    private static VideoInfo withStartTime(VideoInfo info, long progress) {
-        if (progress <= 0) return info;
-        String[] params = Arrays.copyOf(info.params(), info.params().length + 1);
-        params[params.length - 1] = ":start-time=" + progress / 1000f;
-        return new VideoInfo(info.playerName(), info.name(), info.path(), info.rawPath(), info.expire(), info.seekable(), params);
     }
 
     public static VideoScreen read(ByteBuf buf, VideoArea area) {
