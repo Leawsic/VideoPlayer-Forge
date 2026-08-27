@@ -57,7 +57,7 @@ public final class DanmakuManager {
         TRACKS.remove(screen);
     }
 
-    public static void draw(ClientVideoScreen screen, MultiBufferSource.BufferSource buffers) {
+    public static void draw(ClientVideoScreen screen, com.mojang.blaze3d.vertex.PoseStack matrices, MultiBufferSource.BufferSource buffers) {
         if (!VideoPlayerClient.config.danmaku) return;
         Track track = TRACKS.get(screen);
         if (track == null || track.cid == 0 || screen.player == null || screen.player.isPaused()) return;
@@ -84,17 +84,28 @@ public final class DanmakuManager {
         int videoHeight = player.getHeight();
         if (videoWidth <= 0 || videoHeight <= 0) return;
 
-        Vector3f origin = new Vector3f(screen.p1).sub(new Vector3f(
-                com.github.squi2rel.vp.ScreenRenderer.cameraX,
-                com.github.squi2rel.vp.ScreenRenderer.cameraY,
-                com.github.squi2rel.vp.ScreenRenderer.cameraZ));
+        // Build a matrix in the same world coordinate system the video quad uses:
+        // start from the current world pose, offset by the camera, then map the
+        // 2D danmaku coordinate (x in [0,videoWidth], y in [0,videoHeight]) onto
+        // the screen plane spanned by p1->p4 (right) and p1->p2 (down).
         Vector3f right = new Vector3f(screen.p4).sub(screen.p1).div(videoWidth);
         Vector3f down = new Vector3f(screen.p2).sub(screen.p1).div(videoHeight);
-        Matrix4f matrix = new Matrix4f()
+        Vector3f normal = new Vector3f(right).cross(down, new Vector3f()).normalize();
+
+        matrices.pushPose();
+        matrices.translate(-com.github.squi2rel.vp.ScreenRenderer.cameraX,
+                -com.github.squi2rel.vp.ScreenRenderer.cameraY,
+                -com.github.squi2rel.vp.ScreenRenderer.cameraZ);
+        Matrix4f matrix = new Matrix4f(matrices.last().pose());
+        matrices.popPose();
+
+        Matrix4f local = new Matrix4f()
                 .m00(right.x).m01(right.y).m02(right.z)
                 .m10(down.x).m11(down.y).m12(down.z)
-                .m20(0).m21(0).m22(1)
-                .m30(origin.x).m31(origin.y).m32(origin.z);
+                .m20(normal.x).m21(normal.y).m22(normal.z)
+                .m30(screen.p1.x).m31(screen.p1.y).m32(screen.p1.z);
+        matrix.mul(local);
+
         Font font = Minecraft.getInstance().font;
         for (int index = 0; index < visible.size(); index++) {
             Danmaku danmaku = visible.get(index);

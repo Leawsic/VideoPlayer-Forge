@@ -64,7 +64,7 @@ public class ClientVideoScreen extends VideoScreen {
     public void draw(PoseStack matrices, MultiBufferSource.BufferSource immediate) {
         if (player == null) return;
         player.draw(matrices, immediate, this);
-        if (source.isEmpty()) DanmakuManager.draw(this, immediate);
+        if (source.isEmpty()) DanmakuManager.draw(this, matrices, immediate);
     }
 
     public void swapTexture() {
