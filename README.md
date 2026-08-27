@@ -39,7 +39,7 @@ Forge 1.20.1 模组：在游戏世界中播放视频、直播流、B 站视频�
 ### 播放控制
 | 命令 | 参数 | 权限等级 | 说明 |
 |------|------|----------|------|
-| `/vlc play` | `<url>` | 需主屏幕 | 在当前主屏幕播放（支持 B 站链接/直播/网络流/本地文件） |
+| `/vlc play` | `<url>` | 需主屏幕 | 在当前主屏幕播放（支持 B 站链接/直播/网络流/本地文件）。注意播放链接需[处理](#链接处理)！ |
 | `/vlc playthat` | `<area> <screen> <url>` | 需主屏幕 | 在指定屏幕播放 |
 | `/vlc stop` | — | 需主屏幕 | 停止并清空队列，**释放解码器/纹理** |
 | `/vlc pause` | — | 需主屏幕 | 暂停，**保留解码器/进度/队列**，画面定格 |
@@ -53,7 +53,22 @@ Forge 1.20.1 模组：在游戏世界中播放视频、直播流、B 站视频�
 | `/vlc idleplay` | `<url>` | 需主屏幕 | 空闲播放（队列为空时自动播放） |
 | `/vlc list` | — | 需主屏幕 | 显示当前屏幕播放队列 |
 
+#### 链接处理
+
+从B站上拿到的链接需进行处理，将播放数据trace tag去除。操作如下：
+
+原链接：https://www.bilibili.com/video/BV1db8x6VE73/?spm_id_from=333.337.search-card.all.click
+
+https://live.bilibili.com/26843450?hotRank=0&session_id=5250dc6dd71fda2e26828fb9996a9014_0E1B29B0-CA97-42B1-9E78-79CF779618F7&live_from=77002&trackid=live_feed_0.router-live-2482124-drxhl.1787827286351.574&visit_id=6047xe9a60w0
+
+处理：https://www.bilibili.com/video/BV1db8x6VE73/
+
+https://live.bilibili.com/26843450
+
+基本上就是把第一个问好后面的内容全部删掉
+
 ### 预设系统
+
 | 命令 | 参数 | 权限等级 | 说明 |
 |------|------|----------|------|
 | `/vlc preset list` | — | 无限制 | 列出内置与自定义预设 |
