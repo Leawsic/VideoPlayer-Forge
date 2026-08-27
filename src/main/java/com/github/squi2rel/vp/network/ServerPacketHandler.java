@@ -81,6 +81,9 @@ public class ServerPacketHandler {
                 VideoArea area = getArea(player, readName(buf));
                 if (area == null) return;
                 VideoScreen screen = VideoScreen.read(buf, area);
+                readUV(buf, screen);
+                readScale(buf, screen);
+                screen.readMeta(buf);
                 screen.initServer();
                 DataHolder.lock();
                 area.addScreen(screen);

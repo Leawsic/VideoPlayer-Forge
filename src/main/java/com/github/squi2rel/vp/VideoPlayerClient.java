@@ -2,6 +2,8 @@ package com.github.squi2rel.vp;
 
 import com.github.squi2rel.vp.network.PacketID;
 import com.github.squi2rel.vp.network.VideoPayload;
+import com.github.squi2rel.vp.preset.PresetManager;
+import com.github.squi2rel.vp.preset.ScreenPreset;
 import com.github.squi2rel.vp.provider.VideoInfo;
 import com.github.squi2rel.vp.video.*;
 import com.google.gson.Gson;
@@ -15,6 +17,7 @@ import net.minecraft.client.gui.components.LerpingBossEvent;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -22,6 +25,8 @@ import net.minecraft.network.protocol.game.ClientboundBossEventPacket;
 import net.minecraft.world.BossEvent;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
@@ -100,9 +105,16 @@ public class VideoPlayerClient {
         return builder.buildFuture();
     };
 
+    private static final SuggestionProvider<CommandSourceStack> SUGGEST_PRESETS = (context, builder) -> {
+        PresetManager.builtins().keySet().forEach(name -> suggestPreset(builder, name));
+        PresetManager.customs().keySet().forEach(name -> suggestPreset(builder, name));
+        return builder.buildFuture();
+    };
+
     public static void init() {
         VlcDecoder.load();
         loadConfig();
+        PresetManager.init();
         disconnectHandler = () -> client.execute(() -> {
             connected = false;
             for (ClientVideoArea area : areas.values()) {
@@ -216,6 +228,11 @@ public class VideoPlayerClient {
                                     first.player.setVolume(v);
                                     return 1;
                                 })))
+                .then(Commands.literal("createAreaHere")
+                        .then(Commands.argument("name", StringArgumentType.string())
+                                .executes(s -> createAreaHere(s, 16f))
+                                .then(Commands.argument("radius", FloatArgumentType.floatArg(1f))
+                                        .executes(s -> createAreaHere(s, s.getArgument("radius", Float.class))))))
                 .then(Commands.literal("createArea")
                         .then(Commands.argument("x1", FloatArgumentType.floatArg())
                         .then(Commands.argument("y1", FloatArgumentType.floatArg())
@@ -241,6 +258,12 @@ public class VideoPlayerClient {
                                     );
                                     return 1;
                                 })))))))))
+                .then(Commands.literal("createScreenHere")
+                        .then(Commands.argument("area", StringArgumentType.string()).suggests(SUGGEST_AREAS)
+                                .then(Commands.argument("name", StringArgumentType.string())
+                                        .executes(s -> createScreenHere(s, null))
+                                        .then(Commands.argument("preset", StringArgumentType.string()).suggests(SUGGEST_PRESETS)
+                                                .executes(s -> createScreenHere(s, s.getArgument("preset", String.class)))))))
                 .then(Commands.literal("removeArea")
                         .then(Commands.argument("name", StringArgumentType.string()).suggests(SUGGEST_AREAS)
                                 .executes(s -> {
@@ -295,6 +318,24 @@ public class VideoPlayerClient {
                                     ));
                                     return 1;
                                 })))))))))))))))))
+                .then(Commands.literal("preset")
+                        .then(Commands.literal("list").executes(s -> listPresets(s)))
+                        .then(Commands.literal("apply")
+                                .then(Commands.argument("preset", StringArgumentType.string()).suggests(SUGGEST_PRESETS)
+                                        .then(Commands.argument("area", StringArgumentType.string()).suggests(SUGGEST_AREAS)
+                                                .then(Commands.argument("screen", StringArgumentType.string())
+                                                        .executes(s -> createScreenHere(s, s.getArgument("preset", String.class)))))))
+                        .then(Commands.literal("save")
+                                .then(Commands.argument("name", StringArgumentType.string())
+                                        .then(Commands.argument("width", FloatArgumentType.floatArg(0.1f))
+                                                .then(Commands.argument("height", FloatArgumentType.floatArg(0.1f))
+                                                        .executes(s -> savePreset(s,
+                                                                s.getArgument("name", String.class),
+                                                                s.getArgument("width", Float.class),
+                                                                s.getArgument("height", Float.class)))))))
+                        .then(Commands.literal("remove")
+                                .then(Commands.argument("name", StringArgumentType.string()).suggests(SUGGEST_PRESETS)
+                                        .executes(s -> removePreset(s, s.getArgument("name", String.class))))))
                 .then(Commands.literal("removeScreen")
                         .then(Commands.argument("area", StringArgumentType.string()).suggests(SUGGEST_AREAS)
                                 .then(Commands.argument("name", StringArgumentType.string()).suggests(SUGGEST_SCREENS)
@@ -481,6 +522,90 @@ public class VideoPlayerClient {
             return null;
         }
         return area;
+    }
+
+    private static int createAreaHere(CommandContext<CommandSourceStack> context, float radius) {
+        if (checkInvalid(context, false) || client.player == null) return 0;
+        String name = context.getArgument("name", String.class);
+        Vector3f pos = client.player.position().toVector3f();
+        ClientPacketHandler.createArea(
+                new Vector3f(pos.x - radius, pos.y - radius, pos.z - radius),
+                new Vector3f(pos.x + radius, pos.y + radius, pos.z + radius), name);
+        return 1;
+    }
+
+    private static int createScreenHere(CommandContext<CommandSourceStack> context, String presetName) {
+        if (checkInvalid(context, false) || client.player == null) return 0;
+        String areaName = context.getArgument("area", String.class);
+        ClientVideoArea area = areas.get(areaName);
+        if (area == null) {
+            context.getSource().sendSuccess(() -> Component.literal("没有名为 " + areaName + " 的观影区").withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+        String name = context.getNodes().stream().anyMatch(node -> node.getNode().getName().equals("screen"))
+                ? context.getArgument("screen", String.class)
+                : context.getArgument("name", String.class);
+        ScreenPreset preset = presetName == null ? new ScreenPreset() : PresetManager.find(presetName);
+        if (preset == null) {
+            context.getSource().sendSuccess(() -> Component.literal("没有名为 " + presetName + " 的预设").withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+        Vec3 center;
+        Vec3 right;
+        if (!preset.floating && client.hitResult instanceof BlockHitResult hit
+                && hit.getType() == HitResult.Type.BLOCK
+                && hit.getDirection().getAxis().isHorizontal()) {
+            Direction direction = hit.getDirection();
+            center = hit.getLocation().add(Vec3.atLowerCornerOf(direction.getNormal()).scale(0.01));
+            right = Vec3.atLowerCornerOf(direction.getClockWise().getNormal());
+        } else {
+            Direction direction = client.player.getDirection();
+            center = client.player.getEyePosition().add(Vec3.atLowerCornerOf(direction.getNormal()).scale(2));
+            right = Vec3.atLowerCornerOf(direction.getClockWise().getNormal());
+        }
+        float width = preset.width;
+        float height = preset.height;
+        Vec3 up = new Vec3(0, 1, 0);
+        Vector3f p1 = center.add(up.scale(height / 2)).add(right.scale(width / 2)).toVector3f();
+        Vector3f p2 = center.add(up.scale(-height / 2)).add(right.scale(width / 2)).toVector3f();
+        Vector3f p3 = center.add(up.scale(-height / 2)).add(right.scale(-width / 2)).toVector3f();
+        Vector3f p4 = center.add(up.scale(height / 2)).add(right.scale(-width / 2)).toVector3f();
+        VideoScreen screen = new VideoScreen(area, name, p1, p2, p3, p4, preset.source);
+        screen.u1 = preset.u1;
+        screen.v1 = preset.v1;
+        screen.u2 = preset.u2;
+        screen.v2 = preset.v2;
+        screen.fill = preset.fill;
+        screen.scaleX = preset.scaleX;
+        screen.scaleY = preset.scaleY;
+        screen.meta = new HashMap<>(preset.meta);
+        ClientPacketHandler.createScreen(screen);
+        return 1;
+    }
+
+    private static void suggestPreset(com.mojang.brigadier.suggestion.SuggestionsBuilder builder, String name) {
+        if (name.startsWith(builder.getRemaining())) builder.suggest(name);
+    }
+
+    private static int listPresets(CommandContext<CommandSourceStack> context) {
+        String names = String.join(", ", PresetManager.builtins().keySet())
+                + (PresetManager.customs().isEmpty() ? "" : ", " + String.join(", ", PresetManager.customs().keySet()));
+        context.getSource().sendSuccess(() -> Component.literal("可用屏幕预设: " + names).withStyle(ChatFormatting.GOLD), false);
+        return 1;
+    }
+
+    private static int savePreset(CommandContext<CommandSourceStack> context, String name, float width, float height) {
+        boolean saved = PresetManager.save(name, width, height);
+        context.getSource().sendSuccess(() -> Component.literal(saved ? "已保存预设 " + name : "无法保存预设 " + name)
+                .withStyle(saved ? ChatFormatting.GREEN : ChatFormatting.RED), false);
+        return saved ? 1 : 0;
+    }
+
+    private static int removePreset(CommandContext<CommandSourceStack> context, String name) {
+        boolean removed = PresetManager.remove(name);
+        context.getSource().sendSuccess(() -> Component.literal(removed ? "已删除预设 " + name : "没有可删除的自定义预设 " + name)
+                .withStyle(removed ? ChatFormatting.GREEN : ChatFormatting.RED), false);
+        return removed ? 1 : 0;
     }
 
     private static ClientVideoScreen getScreen(CommandContext<CommandSourceStack> s) {

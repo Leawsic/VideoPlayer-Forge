@@ -17,6 +17,7 @@ import net.minecraftforge.client.ClientCommandHandler;
 import org.joml.Vector3f;
 
 import java.util.Objects;
+import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 
 import static com.github.squi2rel.vp.VideoPlayerClient.areas;
@@ -235,9 +236,13 @@ public class ClientPacketHandler {
     }
 
     public static void createScreen(VideoScreen screen) {
+        if (screen.meta == null) screen.meta = new HashMap<>();
         ByteBuf buf = create(CREATE_SCREEN);
         writeString(buf, screen.area.name);
         VideoScreen.write(buf, screen);
+        ServerPacketHandler.writeUV(buf, screen);
+        ServerPacketHandler.writeScale(buf, screen);
+        screen.writeMeta(buf);
         send(toByteArray(buf));
     }
 
