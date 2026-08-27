@@ -46,36 +46,20 @@ public class ClientPacketHandler {
             case REQUEST -> {
                 ClientVideoScreen screen = areas.get(readName(buf)).getScreen(readName(buf));
                 VideoInfo info = VideoInfo.read(buf);
-                LocalPlayer player = Minecraft.getInstance().player;
-                if (player == null) return;
-                if (screen.player != null) screen.player.stop();
-                if (info.rawPath().isEmpty()) {
-                    screen.play(info);
-                    return;
-                }
-                CompletableFuture<VideoInfo> video = VideoProviders.from(info.rawPath(), new NamedProviderSource(info.playerName()));
-                if (video == null) {
-                    player.displayClientMessage(Component.literal("无法解析视频源"), false);
-                    return;
-                }
-                CompletableFuture.supplyAsync(() -> {
-                    try {
-                        return video.get();
-                    } catch (Exception e) {
-                        LOGGER.error(e.toString());
-                        return null;
-                    }
-                }).thenAccept(v -> {
-                    try {
-                        if (v == null) {
-                            player.displayClientMessage(Component.literal("无法解析视频源"), false);
-                            return;
-                        }
-                        Minecraft.getInstance().execute(() -> screen.play(new VideoInfo(info.playerName(), info.name(), v.path(), v.rawPath(), v.expire(), v.seekable(), info.params())));
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                });
+                if (screen != null) play(screen, info);
+            }
+            case STOP -> {
+                ClientVideoScreen screen = areas.get(readName(buf)).getScreen(readName(buf));
+                long progress = buf.readLong();
+                if (screen != null) screen.stopPlayback(progress);
+            }
+            case PLAY_AT -> {
+                ClientVideoScreen screen = areas.get(readName(buf)).getScreen(readName(buf));
+                VideoInfo info = VideoInfo.read(buf);
+                long progress = buf.readLong();
+                if (screen == null) return;
+                screen.setToSeek(progress);
+                play(screen, info);
             }
             case SYNC -> {
                 String areaName = readName(buf);
@@ -100,8 +84,15 @@ public class ClientPacketHandler {
                 ClientVideoArea area = areas.get(readName(buf));
                 while (buf.readableBytes() != 0) {
                     ClientVideoScreen screen = area.getScreen(readName(buf));
-                    screen.setToPlay(VideoInfo.read(buf));
-                    screen.setToSeek(buf.readLong());
+                    boolean stopped = buf.readBoolean();
+                    VideoInfo info = VideoInfo.read(buf);
+                    long progress = buf.readLong();
+                    if (stopped) {
+                        screen.stopPlayback(progress);
+                        continue;
+                    }
+                    screen.setToPlay(info);
+                    screen.setToSeek(progress);
                 }
                 area.load();
             }
@@ -123,9 +114,7 @@ public class ClientPacketHandler {
             case SKIP -> {
                 ClientVideoScreen screen = areas.get(readName(buf)).getScreen(readName(buf));
                 if (screen == null) return;
-                IVideoPlayer player = screen.player;
-                if (player == null) return;
-                Minecraft.getInstance().execute(player::stop);
+                Minecraft.getInstance().execute(screen::stopPlayback);
             }
             case EXECUTE -> {
                 Minecraft client = Minecraft.getInstance();
@@ -181,6 +170,34 @@ public class ClientPacketHandler {
 
     private static String readName(ByteBuf buf) {
         return ByteBufUtils.readString(buf, MAX_NAME_LENGTH);
+    }
+
+    private static void play(ClientVideoScreen screen, VideoInfo info) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null) return;
+        if (info.rawPath().isEmpty()) {
+            screen.play(info);
+            return;
+        }
+        CompletableFuture<VideoInfo> video = VideoProviders.from(info.rawPath(), new NamedProviderSource(info.playerName()));
+        if (video == null) {
+            player.displayClientMessage(Component.literal("无法解析视频源"), false);
+            return;
+        }
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                return video.get();
+            } catch (Exception e) {
+                LOGGER.error(e.toString());
+                return null;
+            }
+        }).thenAccept(resolved -> Minecraft.getInstance().execute(() -> {
+            if (resolved == null) {
+                player.displayClientMessage(Component.literal("无法解析视频源"), false);
+                return;
+            }
+            screen.play(new VideoInfo(info.playerName(), info.name(), resolved.path(), resolved.rawPath(), resolved.expire(), resolved.seekable(), info.params()));
+        }));
     }
 
     private static ByteBuf create(int id) {
@@ -258,6 +275,28 @@ public class ClientPacketHandler {
         writeString(buf, screen.area.name);
         writeString(buf, screen.name);
         buf.writeBoolean(force);
+        send(toByteArray(buf));
+    }
+
+    public static void stop(VideoScreen screen) {
+        ByteBuf buf = create(STOP);
+        writeString(buf, screen.area.name);
+        writeString(buf, screen.name);
+        send(toByteArray(buf));
+    }
+
+    public static void resume(VideoScreen screen) {
+        ByteBuf buf = create(PLAY_AT);
+        writeString(buf, screen.area.name);
+        writeString(buf, screen.name);
+        send(toByteArray(buf));
+    }
+
+    public static void seek(VideoScreen screen, long progress) {
+        ByteBuf buf = create(SEEK);
+        writeString(buf, screen.area.name);
+        writeString(buf, screen.name);
+        buf.writeLong(progress);
         send(toByteArray(buf));
     }
 

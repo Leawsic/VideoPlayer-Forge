@@ -128,6 +128,25 @@ public class ServerPacketHandler {
                 PlayerList pm = Objects.requireNonNull(player.getServer()).getPlayerList();
                 area.forEachPlayer(p -> Objects.requireNonNull(pm.getPlayer(p)).sendSystemMessage(s));
             }
+            case STOP -> {
+                VideoArea area = getArea(player, readName(buf));
+                if (area == null) return;
+                VideoScreen screen = area.getScreen(readName(buf));
+                if (screen != null) screen.stop();
+            }
+            case PLAY_AT -> {
+                VideoArea area = getArea(player, readName(buf));
+                if (area == null) return;
+                VideoScreen screen = area.getScreen(readName(buf));
+                if (screen != null) screen.resume();
+            }
+            case SEEK -> {
+                VideoArea area = getArea(player, readName(buf));
+                if (area == null) return;
+                VideoScreen screen = area.getScreen(readName(buf));
+                long progress = buf.readLong();
+                if (screen != null) screen.seek(progress);
+            }
             case SKIP_PERCENT -> {
                 // TODO check permission
                 VideoArea area = getArea(player, readName(buf));
@@ -399,6 +418,7 @@ public class ServerPacketHandler {
             VideoInfo info = screen.currentPlaying();
             if (info == null) continue;
             writeString(buf, screen.name);
+            buf.writeBoolean(screen.isStopped());
             VideoInfo.write(buf, info);
             buf.writeLong(screen.getProgress());
         }
@@ -430,6 +450,23 @@ public class ServerPacketHandler {
         ByteBuf buf = create(SKIP);
         writeString(buf, screen.area.name);
         writeString(buf, screen.name);
+        return toByteArray(buf);
+    }
+
+    public static byte[] stop(VideoScreen screen) {
+        ByteBuf buf = create(STOP);
+        writeString(buf, screen.area.name);
+        writeString(buf, screen.name);
+        buf.writeLong(screen.getProgress());
+        return toByteArray(buf);
+    }
+
+    public static byte[] playAt(VideoScreen screen, VideoInfo info, long progress) {
+        ByteBuf buf = create(PLAY_AT);
+        writeString(buf, screen.area.name);
+        writeString(buf, screen.name);
+        VideoInfo.write(buf, info);
+        buf.writeLong(progress);
         return toByteArray(buf);
     }
 

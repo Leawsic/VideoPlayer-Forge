@@ -407,9 +407,24 @@ public class VideoPlayerClient {
                 .then(Commands.literal("stop")
                         .executes(s -> {
                             if (checkInvalid(s, true)) return 0;
-                            currentScreen.player.stop();
+                            ClientPacketHandler.stop(currentScreen.getScreen());
                             return 1;
                         }))
+                .then(Commands.literal("resume")
+                        .executes(s -> {
+                            if (checkInvalid(s, true)) return 0;
+                            ClientPacketHandler.resume(currentScreen.getScreen());
+                            return 1;
+                        }))
+                .then(Commands.literal("seek")
+                        .then(Commands.argument("millis", LongArgumentType.longArg(0))
+                                .executes(s -> seek(s, s.getArgument("millis", Long.class)))))
+                .then(Commands.literal("forward")
+                        .then(Commands.argument("millis", LongArgumentType.longArg(1))
+                                .executes(s -> seek(s, currentScreen.getScreen().getPlaybackProgress() + s.getArgument("millis", Long.class)))))
+                .then(Commands.literal("back")
+                        .then(Commands.argument("millis", LongArgumentType.longArg(1))
+                                .executes(s -> seek(s, Math.max(0, currentScreen.getScreen().getPlaybackProgress() - s.getArgument("millis", Long.class)))))
                 .then(Commands.literal("setmeta")
                         .then(Commands.argument("area", StringArgumentType.string()).suggests(SUGGEST_AREAS)
                                 .then(Commands.argument("screen", StringArgumentType.string()).suggests(SUGGEST_SCREENS)
@@ -647,6 +662,13 @@ public class VideoPlayerClient {
             return true;
         }
         return false;
+    }
+
+    private static int seek(CommandContext<CommandSourceStack> context, long progress) {
+        if (checkInvalid(context, true)) return 0;
+        ClientVideoScreen screen = currentScreen.getScreen();
+        ClientPacketHandler.seek(screen, progress);
+        return 1;
     }
 
     private static void updateBossBar() {
