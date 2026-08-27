@@ -53,6 +53,7 @@ public class VlcDecoder {
             @Override
             public void playing(MediaPlayer mediaPlayer) {
                 playListener.run();
+                if (paused) mediaPlayer.submit(() -> mediaPlayer.controls().setPause(true));
             }
 
             @Override
