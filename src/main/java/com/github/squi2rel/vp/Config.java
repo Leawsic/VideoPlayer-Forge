@@ -4,4 +4,5 @@ public class Config {
     public int volume = 100;
     public int brightness = 100;
     public boolean alwaysConnected = false;
+    public boolean danmaku = true;
 }

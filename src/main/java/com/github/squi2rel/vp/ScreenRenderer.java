@@ -63,6 +63,7 @@ public class ScreenRenderer {
                 VideoPlayerMain.LOGGER.error("Exception while rendering", e);
             }
         }
+        immediate.endBatch();
         RenderSystem.setShaderTexture(0, old);
         RenderSystem.enableCull();
         RenderSystem.disableDepthTest();

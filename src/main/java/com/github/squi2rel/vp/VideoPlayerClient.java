@@ -390,6 +390,15 @@ public class VideoPlayerClient {
                                     saveConfig();
                                     return 1;
                                 })))
+                .then(Commands.literal("danmaku")
+                        .then(Commands.argument("enabled", BoolArgumentType.bool())
+                                .executes(s -> {
+                                    config.danmaku = s.getArgument("enabled", Boolean.class);
+                                    saveConfig();
+                                    s.getSource().sendSuccess(() -> Component.literal("弹幕已" + (config.danmaku ? "开启" : "关闭"))
+                                            .withStyle(ChatFormatting.GREEN), false);
+                                    return 1;
+                                })))
                 .then(Commands.literal("slice")
                         .then(Commands.argument("u1", FloatArgumentType.floatArg())
                         .then(Commands.argument("v1", FloatArgumentType.floatArg())

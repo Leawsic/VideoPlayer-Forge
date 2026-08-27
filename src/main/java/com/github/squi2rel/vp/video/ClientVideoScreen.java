@@ -2,6 +2,7 @@ package com.github.squi2rel.vp.video;
 
 import com.github.squi2rel.vp.ClientPacketHandler;
 import com.github.squi2rel.vp.VideoPlayerClient;
+import com.github.squi2rel.vp.danmaku.DanmakuManager;
 import com.github.squi2rel.vp.provider.VideoInfo;
 import io.netty.buffer.ByteBuf;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -61,7 +62,9 @@ public class ClientVideoScreen extends VideoScreen {
     }
 
     public void draw(PoseStack matrices, MultiBufferSource.BufferSource immediate) {
-        if (player != null) player.draw(matrices, immediate, this);
+        if (player == null) return;
+        player.draw(matrices, immediate, this);
+        if (source.isEmpty()) DanmakuManager.draw(this, immediate);
     }
 
     public void swapTexture() {
@@ -113,6 +116,7 @@ public class ClientVideoScreen extends VideoScreen {
             }
             player.play(info);
             if (paused) player.pause(true);
+            DanmakuManager.play(this, info);
         }
     }
 
@@ -145,6 +149,7 @@ public class ClientVideoScreen extends VideoScreen {
             player.cleanup();
             player = null;
         }
+        DanmakuManager.stop(this);
     }
 
     public long getPlaybackProgress() {
@@ -229,6 +234,7 @@ public class ClientVideoScreen extends VideoScreen {
     public void unload() {
         VideoPlayerClient.screens.remove(this);
         if (player != null) player.cleanup();
+        DanmakuManager.stop(this);
     }
 
     public boolean isPostUpdate() {
