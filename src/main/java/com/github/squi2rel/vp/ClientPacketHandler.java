@@ -53,20 +53,20 @@ public class ClientPacketHandler {
             }
             case STOP -> {
                 ClientVideoScreen screen = areas.get(readName(buf)).getScreen(readName(buf));
-                if (screen != null) screen.stopPlayback();
+                if (screen != null) Minecraft.getInstance().execute(screen::stopPlayback);
             }
             case PAUSE -> {
                 ClientVideoScreen screen = areas.get(readName(buf)).getScreen(readName(buf));
-                if (screen != null) screen.pause(true);
+                if (screen != null) Minecraft.getInstance().execute(() -> screen.pause(true));
             }
             case RESUME -> {
                 ClientVideoScreen screen = areas.get(readName(buf)).getScreen(readName(buf));
-                if (screen != null) screen.pause(false);
+                if (screen != null) Minecraft.getInstance().execute(() -> screen.pause(false));
             }
             case SEEK -> {
                 ClientVideoScreen screen = areas.get(readName(buf)).getScreen(readName(buf));
                 long progress = buf.readLong();
-                if (screen != null) screen.setProgress(progress);
+                if (screen != null) Minecraft.getInstance().execute(() -> screen.setProgress(progress));
             }
             case SYNC -> {
                 String areaName = readName(buf);

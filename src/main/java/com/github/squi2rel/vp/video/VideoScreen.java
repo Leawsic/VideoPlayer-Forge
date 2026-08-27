@@ -101,7 +101,7 @@ public class VideoScreen {
 
     public long getProgress() {
         VideoInfo info = infos.peek();
-        if (now == null || info == null || !info.seekable()) return -1;
+        if (now == null || info == null) return -1;
         return now.getProgress();
     }
 
@@ -271,7 +271,10 @@ public class VideoScreen {
             synchronized (this) {
                 nextTask = null;
                 s.stopped(() -> VideoPlayerMain.scheduler.schedule(() -> {
-                    if (paused) return;
+                    synchronized (this) {
+                        if (paused || now != s) return;
+                        now = null;
+                    }
                     lock();
                     infos.poll();
                     unlock();

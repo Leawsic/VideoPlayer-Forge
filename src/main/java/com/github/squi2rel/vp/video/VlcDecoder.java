@@ -23,6 +23,7 @@ public class VlcDecoder {
     private final TextureRenderFormatCallback callback = new TextureRenderFormatCallback();
     private ByteBuffer buffer, glBuffer;
     private volatile boolean paused;
+    private volatile boolean finished;
 
     public long lastPlayTime;
     public long lastPlayUpdateTime;
@@ -58,6 +59,7 @@ public class VlcDecoder {
 
             @Override
             public void finished(MediaPlayer mediaPlayer) {
+                finished = true;
                 finishListener.run();
             }
 
@@ -98,7 +100,9 @@ public class VlcDecoder {
 
     public void init(VideoInfo info) {
         lastPlayTime = 0;
+        lastPlayUpdateTime = System.currentTimeMillis();
         paused = false;
+        finished = false;
         mediaPlayer.media().play(info.path().replace("rtspt://", "rtsp://"), info.params());
     }
 
@@ -113,6 +117,7 @@ public class VlcDecoder {
 
     public void stop() {
         paused = false;
+        finished = true;
         mediaPlayer.submit(() -> mediaPlayer.controls().stop());
         glBuffer = null;
         buffer = null;
@@ -152,7 +157,7 @@ public class VlcDecoder {
     }
 
     public long getProgress() {
-        return lastPlayTime == 0 ? 0 : paused ? lastPlayTime : System.currentTimeMillis() - lastPlayUpdateTime + lastPlayTime;
+        return lastPlayTime == 0 || finished ? lastPlayTime : paused ? lastPlayTime : System.currentTimeMillis() - lastPlayUpdateTime + lastPlayTime;
     }
 
     public long getTotalProgress() {
