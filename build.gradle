@@ -63,6 +63,19 @@ mixin {
     config "${mod_id}.mixins.json"
 }
 
+tasks.named('compileJava', JavaCompile).configure {
+    doLast {
+        def refmapFile = file("build/tmp/compileJava/compileJava-refmap.json")
+        if (refmapFile.exists()) {
+            copy {
+                from refmapFile
+                into "build/resources/main"
+                rename { "${mod_id}.refmap.json" }
+            }
+        }
+    }
+}
+
 repositories {
     mavenCentral()
 }
